@@ -167,7 +167,10 @@ def edit_services():
             net = {"default": {"name": "ctf_network", "external": True}}
             if "networks" in ymlfile:
                 if "default" not in ymlfile["networks"]:
-                    ymlfile["networks"].append(net)
+                    try:
+                        ymlfile["networks"].append(net)
+                    except:
+                        ymlfile["networks"]["default"] = net["default"]
                 else:
                     print(
                         f"[!] Error: service {service} already has a default network. Skipping this step, review it manually before restarting."
@@ -187,7 +190,7 @@ def configure_proxy():
     """
     # Download ctf_proxy
     if not Path("./ctf_proxy").exists():
-        os.system("git clone https://github.com/ByteLeMani/ctf_proxy.git")
+        os.system("git clone https://github.com/liamthorell/ctf_proxy.git")
 
     with open("./ctf_proxy/docker-compose.yml", "r") as file:
         ymlfile = yaml.load(file)
