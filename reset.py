@@ -16,3 +16,7 @@ for s in services.keys():
     os.system(f"docker compose -f {path}/docker-compose.* up --build -d")
 
 print("You can now remove services.json and ./ctf_proxy")
+a = input("Do you want to remove those automatically? (y/N)")
+if a == "y":
+    os.system(f"rm -rf /root/ctf_proxy")
+    os.system("rm /root/services.json")
