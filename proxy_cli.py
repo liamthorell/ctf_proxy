@@ -92,6 +92,69 @@ def make_backup():
             shutil.make_archive(dir.name + f"_backup", "zip", dir)
 
 
+def parse_port_specification(port_spec, service_name, container_name):
+    """
+    Parse various port specification formats:
+    - "8080:80" -> ["8080", "80"]
+    - "8080:80/tcp" -> ["8080", "80"]
+    - "${SERVICE_BIND:-}:${SERVICE_PORT:-9000}:9000" -> ["9000", "9000"]
+    - "${PORT:-8080}:80" -> ["8080", "80"]
+    - "80" (expose only) -> ["80", "80"]
+    """
+    import re
+
+    # Remove protocol suffix (/tcp, /udp, etc.)
+    port_spec = re.sub(r"/(tcp|udp)$", "", port_spec.strip())
+
+    # Check if it contains environment variables
+    if "${" in port_spec:
+        # Extract default values from environment variable syntax
+        # Pattern: ${VAR_NAME:-default_value} or ${VAR_NAME}
+
+        # Replace environment variables with their defaults
+        def replace_env_var(match):
+            var_content = match.group(1)
+            if ":-" in var_content:
+                # Has default value
+                return var_content.split(":-")[1]
+            else:
+                # No default value
+                return None
+
+        # Find all environment variables
+        env_vars = re.findall(r"\$\{([^}]+)\}", port_spec)
+        processed_spec = port_spec
+
+        for var in env_vars:
+            if ":-" in var:
+                # Has default value
+                default_val = var.split(":-")[1]
+                processed_spec = processed_spec.replace("${" + var + "}", default_val)
+            else:
+                # No default value, skip this port spec
+                print(
+                    f"[!] Warning: Environment variable without default in {service_name}_{container_name}: {port_spec}"
+                )
+                return None
+
+        # Continue processing with the resolved spec
+        port_spec = processed_spec
+
+    # Standard port specification
+    if ":" in port_spec:
+        parts = port_spec.split(":")
+        if len(parts) >= 2:
+            return [parts[-2], parts[-1]]  # [listen_port, target_port]
+        else:
+            print(
+                f"[!] Warning: Invalid port mapping {port_spec} in {service_name}_{container_name}"
+            )
+            return None
+    else:
+        # Expose format - single port
+        return [port_spec, port_spec]
+
+
 def parse_services():
     """
     If services.json is present, load it into the global dictionary.
@@ -153,18 +216,27 @@ def parse_services():
 
         for container in ymlfile["services"]:
             try:
-                if "ports" not in ymlfile["services"][container]:
-                    print(f"{service.stem}_{container} has no ports binding")
+                # Check both ports and expose sections
+                ports_string = None
+                if "ports" in ymlfile["services"][container]:
+                    ports_string = ymlfile["services"][container]["ports"]
+                elif "expose" in ymlfile["services"][container]:
+                    ports_string = ymlfile["services"][container]["expose"]
+                    print(f"[+] Using 'expose' section for {service.stem}_{container}")
+                else:
+                    print(f"{service.stem}_{container} has no ports or expose binding")
                     continue
-
-                ports_string = ymlfile["services"][container]["ports"]
 
                 # Handle both list and string formats
                 if isinstance(ports_string, list):
                     ports_list = []
                     for p in ports_string:
-                        if isinstance(p, str) and ":" in p:
-                            ports_list.append(p.split(":"))
+                        if isinstance(p, str):
+                            parsed_port = parse_port_specification(
+                                p, service.stem, container
+                            )
+                            if parsed_port:
+                                ports_list.append(parsed_port)
                         else:
                             print(
                                 f"[!] Warning: Invalid port format in {service.stem}_{container}: {p}"
@@ -191,14 +263,14 @@ def parse_services():
                         True
                         if "y"
                         in input(
-                            f"Is the service {service.stem}:{port[-2]} http? [y/N] "
+                            f"Is the service {service.stem}:{port[0]} http? [y/N] "
                         )
                         else False
                     )
 
                 container_dict = {
-                    "target_port": [p[-1] for p in ports_list if len(p) >= 2],
-                    "listen_port": [p[-2] for p in ports_list if len(p) >= 2],
+                    "target_port": [p[1] for p in ports_list if len(p) >= 2],
+                    "listen_port": [p[0] for p in ports_list if len(p) >= 2],
                     "http": [h for h in http],
                 }
                 services_dict[service.stem]["containers"][container] = container_dict
