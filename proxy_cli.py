@@ -125,13 +125,29 @@ def parse_services():
             print(f"[!] Error: No services section found in {file}")
             continue
 
-        # Check if the service has outer network configuration
+        # Check if the service has complex network configuration that would conflict
         if "networks" in ymlfile:
-            print(
-                f"[!] Warning: Service {service.stem} has outer network configuration - skipping import"
-            )
-            print("    Services with custom networks may conflict with ctf_proxy setup")
-            continue
+            networks = ymlfile["networks"]
+            # Allow simple default network renaming, but skip complex configurations
+            if (
+                len(networks) == 1
+                and "default" in networks
+                and len(networks["default"]) <= 2
+                and all(
+                    key in ["name", "external"] for key in networks["default"].keys()
+                )
+            ):
+                print(
+                    f"[+] Service {service.stem} has simple default network configuration - will be replaced with ctf_proxy network"
+                )
+            else:
+                print(
+                    f"[!] Warning: Service {service.stem} has complex network configuration - skipping import"
+                )
+                print(
+                    "    Services with custom networks may conflict with ctf_proxy setup"
+                )
+                continue
 
         services_dict[service.stem] = {"path": str(service.resolve()), "containers": {}}
 
@@ -268,9 +284,24 @@ def edit_services():
             # add external network
             net = {"default": {"name": "ctf_network", "external": True}}
             if "networks" in ymlfile:
-                if "default" not in ymlfile["networks"]:
+                # Check if it's just a simple default network that we can replace
+                networks = ymlfile["networks"]
+                if (
+                    len(networks) == 1
+                    and "default" in networks
+                    and len(networks["default"]) <= 2
+                    and all(
+                        key in ["name", "external"]
+                        for key in networks["default"].keys()
+                    )
+                ):
+                    print(
+                        f"[+] Replacing simple default network configuration in {service}"
+                    )
+                    ymlfile["networks"] = net
+                elif "default" not in ymlfile["networks"]:
                     try:
-                        ymlfile["networks"].append(net)
+                        ymlfile["networks"].update(net)
                     except:
                         ymlfile["networks"]["default"] = net["default"]
                 else:
