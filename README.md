@@ -8,12 +8,12 @@ Så nu kommer du får lära dig hur du använder [ctf_proxy](https://github.com/
 
 ## Hur funkar det?
 
-Alla patches görs genom python funktioner som vi skriver i specifika filer. Dessa filer kommer ligga i `/root/ctf_proxy/proxy/filter_modules/SERVICE_NAME/` där kommer det finnas en `SERVICE_NAME_IN.py` och en `SERVICE_NAME_OUT.py`. `SERVICE_NAME_IN.py` kommer köras innan paketet skickas vidare till servicen och `SERVICE_NAME_OUT.py` kommer köras efter att packetet lämnat servicen. Oftast är det `..._IN.py` som vi kommer använda.
+Alla patches görs genom python funktioner som vi skriver i specifika filer. Dessa filer kommer ligga i `/XXX/ctf_proxy/proxy/filter_modules/SERVICE_NAME/` där kommer det finnas en `SERVICE_NAME_IN.py` och en `SERVICE_NAME_OUT.py`. `SERVICE_NAME_IN.py` kommer köras innan paketet skickas vidare till servicen och `SERVICE_NAME_OUT.py` kommer köras efter att packetet lämnat servicen. Oftast är det `..._IN.py` som vi kommer använda.
 
 ## Filstruktur
 
 ```
-- /root/ctf_proxy/proxy/filter_modules/
+- /XXX/ctf_proxy/proxy/filter_modules/
     - SERVICE_NAME/
         - SERVICE_NAME_IN.py
         - SERVICE_NAME_OUT.py
